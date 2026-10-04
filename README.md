@@ -17,3 +17,5 @@ Edita la lista `WORDS` al inicio del `<script>` en `index.html`.
 
 ## Publicar en GitHub Pages
 Settings → Pages → *Deploy from a branch* → elige la rama y carpeta `/ (root)` → Save.
+
+🌐 **App:** https://hstockeb.github.io/English-Pronunciation/
