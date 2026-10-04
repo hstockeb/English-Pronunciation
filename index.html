@@ -147,6 +147,12 @@ details.parents li{margin:6px 0}
       <button class="btn mode m-write" data-go="write"><span class="ic">⌨️</span>Escribir<small>Escucha y escribe</small></button>
       <button class="btn mode m-paper" data-go="paper"><span class="ic">✏️</span>Cuaderno<small>Como en la prueba</small></button>
     </div>
+    <div class="listen" style="margin-top:16px">
+      <button class="btn" id="testSound" style="font-size:18px">🔊 Probar sonido</button>
+    </div>
+    <div class="tip" id="soundHelp" style="display:none;text-align:center">
+      🔕 ¿No escuchas nada? En iPhone/iPad <b>quita el modo silencio</b> 🔔 y sube el volumen.
+    </div>
     <div class="sounds" id="sounds"></div>
     <h2>Mis palabras ⭐</h2>
     <div class="stickers" id="stickers"></div>
@@ -158,7 +164,7 @@ details.parents li{margin:6px 0}
         <li><b>✏️ Cuaderno</b> es igual que la prueba: la app dice la palabra, ella la escribe en papel y después revisan juntos.</li>
         <li>Cada palabra gana hasta 3 ⭐ cuando la escribe bien sin ayuda (modos Escribir y Cuaderno).</li>
         <li>Las palabras que falla vuelven a aparecer al final de la ronda.</li>
-        <li>¿No se escucha? Sube el volumen y revisa que el iPhone/iPad no esté en modo silencio.</li>
+        <li><b>¿No se escucha?</b> En iPhone/iPad la voz <b>no suena en modo silencio</b>: activa el sonido (interruptor del costado o Centro de control 🔔) y sube el volumen. Usa Safari o Chrome actualizados.</li>
       </ul>
       <button class="btn" id="reset" style="font-size:17px;padding:10px 16px">🔄 Borrar estrellas</button>
     </details>
@@ -273,14 +279,36 @@ function pickVoice(){
        || vs.find(v=>/^en[-_]US/i.test(v.lang))
        || vs.find(v=>/^en/i.test(v.lang)) || null;
 }
-if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+if('speechSynthesis' in window){
+  pickVoice();
+  if(speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', pickVoice);
+  else speechSynthesis.onvoiceschanged = pickVoice;
+}
+// iOS/Safari only allows speech after a user tap: "unlock" it on the first touch.
+let speechUnlocked = false;
+function unlockSpeech(){
+  if(speechUnlocked || !('speechSynthesis' in window)) return;
+  speechUnlocked = true;
+  const u = new SpeechSynthesisUtterance(' '); u.volume = 0;
+  speechSynthesis.speak(u);
+  try{ actx = actx || new (window.AudioContext||window.webkitAudioContext)(); actx.resume && actx.resume(); }catch(e){}
+}
+['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev, unlockSpeech, {capture:true, passive:true}));
+
+const _keep = []; // keep utterances referenced so the browser doesn't drop them
 function say(text, rate=0.8, queue=false){
   if(!('speechSynthesis' in window)) return;
-  if(!queue) speechSynthesis.cancel();
+  if(!voice) pickVoice();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'en-US'; if(voice) u.voice = voice;
-  u.rate = rate; u.pitch = 1.05;
-  speechSynthesis.speak(u);
+  u.rate = rate; u.pitch = 1.05; u.volume = 1;
+  u.onend = u.onerror = ()=>{ const i=_keep.indexOf(u); if(i>=0) _keep.splice(i,1); };
+  _keep.push(u);
+  const speak = ()=>{ speechSynthesis.resume(); speechSynthesis.speak(u); };
+  // Safari can swallow speak() called right after cancel(): wait a moment.
+  if(!queue && (speechSynthesis.speaking || speechSynthesis.pending)){
+    speechSynthesis.cancel(); setTimeout(speak, 80);
+  } else speak();
 }
 const spell = (w, queue=false) => say(w.toUpperCase().split('').join(', '), 0.6, queue);
 
@@ -338,7 +366,15 @@ function renderHome(){
     return `<div class="sticker"><div class="e">${w.emoji}</div><div class="s">${'⭐'.repeat(n)}${'☆'.repeat(3-n)}</div></div>`;
   }).join('');
 }
-$('reset').onclick = ()=>{ if(confirm('¿Borrar todas las estrellas?')){ MASTERY={}; saveStars(MASTERY); renderHome(); } };
+$('testSound').onclick = ()=>{
+  $('soundHelp').style.display = 'block';
+  if(!('speechSynthesis' in window)){
+    $('soundHelp').innerHTML = '😕 Este navegador no puede hablar. Prueba con Safari o Chrome.';
+    return;
+  }
+  say('Hello! Let\'s practice English!');
+};
+$('reset').onclick =()=>{ if(confirm('¿Borrar todas las estrellas?')){ MASTERY={}; saveStars(MASTERY); renderHome(); } };
 
 /* ---------- LEARN ---------- */
 let L = 0;
