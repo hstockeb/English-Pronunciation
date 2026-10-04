@@ -151,7 +151,7 @@ details.parents li{margin:6px 0}
       <button class="btn" id="testSound" style="font-size:18px">🔊 Probar sonido</button>
     </div>
     <div class="tip" id="soundHelp" style="display:none;text-align:center">
-      🔕 ¿No escuchas nada? En iPhone/iPad <b>quita el modo silencio</b> 🔔 y sube el volumen.
+      ¿Escuchaste “frog” 🐸? Si no, sube el volumen 🔊 o quita el modo silencio 🔔.
     </div>
     <div class="sounds" id="sounds"></div>
     <h2>Mis palabras ⭐</h2>
@@ -164,7 +164,7 @@ details.parents li{margin:6px 0}
         <li><b>✏️ Cuaderno</b> es igual que la prueba: la app dice la palabra, ella la escribe en papel y después revisan juntos.</li>
         <li>Cada palabra gana hasta 3 ⭐ cuando la escribe bien sin ayuda (modos Escribir y Cuaderno).</li>
         <li>Las palabras que falla vuelven a aparecer al final de la ronda.</li>
-        <li><b>¿No se escucha?</b> En iPhone/iPad la voz <b>no suena en modo silencio</b>: activa el sonido (interruptor del costado o Centro de control 🔔) y sube el volumen. Usa Safari o Chrome actualizados.</li>
+        <li><b>¿No se escucha?</b> Sube el volumen. Si aun así no suena, quita el modo silencio 🔔 del iPhone/iPad.</li>
       </ul>
       <button class="btn" id="reset" style="font-size:17px;padding:10px 16px">🔄 Borrar estrellas</button>
     </details>
@@ -257,7 +257,6 @@ const SOUNDS = ['sn','sm','pr','fr','br'];
 const $ = id => document.getElementById(id);
 const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
 const pick = a => a[Math.floor(Math.random()*a.length)];
-const PRAISE_EN = ['Great job!','Awesome!','Super!','Well done!','You did it!','Fantastic!'];
 const PRAISE_ES = ['¡Muy bien!','¡Excelente!','¡Bravo!','¡Genial!','¡Lo lograste!'];
 
 function colored(w){
@@ -296,7 +295,7 @@ function unlockSpeech(){
 ['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev, unlockSpeech, {capture:true, passive:true}));
 
 const _keep = []; // keep utterances referenced so the browser doesn't drop them
-function say(text, rate=0.8, queue=false){
+function tts(text, rate=0.8, queue=false){
   if(!('speechSynthesis' in window)) return;
   if(!voice) pickVoice();
   const u = new SpeechSynthesisUtterance(text);
@@ -310,7 +309,35 @@ function say(text, rate=0.8, queue=false){
     speechSynthesis.cancel(); setTimeout(speak, 80);
   } else speak();
 }
-const spell = (w, queue=false) => say(w.toUpperCase().split('').join(', '), 0.6, queue);
+/* Real recorded audio files (play even when the iPhone is on silent).
+   Falls back to the browser voice if a file can't play. */
+const player = new Audio(); player.preload = 'auto';
+let seq = [], seqTimer = null, seqId = 0;
+const item = {
+  word:   (w, slow) => ({ src:`audio/${slow?'slow':'words'}/${w}.mp3`, text:w, rate:slow?0.4:0.8 }),
+  letter: c => ({ src:`audio/letters/${c}.mp3`, text:c.toUpperCase(), rate:0.7 }),
+};
+function playSeq(items, gap=180){
+  const id = ++seqId; clearTimeout(seqTimer); seq = items.slice();
+  try{ player.pause(); }catch(e){}
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+  const next = ()=>{
+    if(id!==seqId) return;
+    const it = seq.shift(); if(!it) return;
+    let done = false;
+    const advance = d => { if(done || id!==seqId) return; done = true; seqTimer = setTimeout(next, d); };
+    const fallback = () => { if(done || id!==seqId) return; tts(it.text, it.rate, true); advance(900); };
+    player.onended = () => advance(gap);
+    player.onerror = fallback;
+    player.src = it.src;
+    const p = player.play(); if(p && p.catch) p.catch(fallback);
+  };
+  next();
+}
+const say   = (w, slow=false) => playSeq([item.word(w, slow)]);
+const sayLetter = c => playSeq([item.letter(c)]);
+const letters = w => w.split('').map(item.letter);
+const spell = w => playSeq(letters(w), 120);
 
 /* ---------- little sounds ---------- */
 let actx;
@@ -368,11 +395,7 @@ function renderHome(){
 }
 $('testSound').onclick = ()=>{
   $('soundHelp').style.display = 'block';
-  if(!('speechSynthesis' in window)){
-    $('soundHelp').innerHTML = '😕 Este navegador no puede hablar. Prueba con Safari o Chrome.';
-    return;
-  }
-  say('Hello! Let\'s practice English!');
+  say('frog');
 };
 $('reset').onclick =()=>{ if(confirm('¿Borrar todas las estrellas?')){ MASTERY={}; saveStars(MASTERY); renderHome(); } };
 
@@ -385,7 +408,7 @@ function renderLearn(){
   const b = w.sound.length;
   $('lWord').innerHTML = w.word.split('').map((c,i)=>
     `<span class="l${i<b?' blend':''}" data-c="${c}" style="${i<b?`color:var(--${w.sound})`:''}">${c}</span>`).join('');
-  $('lWord').querySelectorAll('.l').forEach(s=>s.onclick=()=>say(s.dataset.c.toUpperCase(),0.7));
+  $('lWord').querySelectorAll('.l').forEach(s=>s.onclick=()=>sayLetter(s.dataset.c));
   $('lMeaning').textContent = '= ' + w.es;
   $('lTip').innerHTML = w.tip ? '💡 '+w.tip : `💡 Empieza con el sonido <b style="color:var(--${w.sound})">${w.sound}</b>`;
   $('lCount').textContent = `${L+1} / ${WORDS.length}`;
@@ -394,7 +417,7 @@ function renderLearn(){
   $('lNext').textContent = L===WORDS.length-1 ? '🧩 ¡A jugar!' : '➡️';
 }
 $('lSay').onclick  = ()=>say(WORDS[L].word);
-$('lSlow').onclick = ()=>say(WORDS[L].word,0.4);
+$('lSlow').onclick = ()=>say(WORDS[L].word,true);
 $('lSpell').onclick= ()=>spell(WORDS[L].word);
 $('lPrev').onclick = ()=>{ if(L>0){ L--; renderLearn(); say(WORDS[L].word); } };
 $('lNext').onclick = ()=>{
@@ -433,7 +456,7 @@ function renderQ(){
   else renderPaper();
 }
 $('gSay').onclick  = ()=>say(G.cur.word);
-$('gSlow').onclick = ()=>say(G.cur.word,0.4);
+$('gSlow').onclick = ()=>say(G.cur.word,true);
 $('gHint').onclick = ()=>{
   const w = G.cur.word, b = G.cur.sound.length;
   if(G.mode==='build' && G.hint===0) G.hint = 1; // picture already visible in build
@@ -448,7 +471,7 @@ $('gHint').onclick = ()=>{
     }
   }
   sfx.pop(); renderQ();
-  if(G.hint>=2) say(G.cur.sound.toUpperCase().split('').join(', '),0.6);
+  if(G.hint>=2) playSeq(letters(G.cur.sound),120);
 };
 
 /* build mode */
@@ -503,7 +526,7 @@ document.addEventListener('keydown', e=>{
   if(G.mode!=='write') return;
   if(/^[a-z]$/i.test(e.key)) typeKey(e.key.toLowerCase());
   else if(e.key==='Backspace'){ e.preventDefault(); backKey(); }
-  else if(e.key==='Enter') checkWrite();
+  else if(e.key==='Enter'){ e.preventDefault(); checkWrite(); }
 });
 
 /* paper mode */
@@ -554,9 +577,9 @@ function finish(ok, buildDone=false){
   record(ok);
   if(!ok) requeue();
   if(ok){ G.stars++; $('gStars').textContent = G.stars; confetti(); }
-  sfx.yay();
-  say(pick(PRAISE_EN));
   const w = G.cur;
+  sfx.yay();
+  say(w.word);
   openFb(`<div class="pic">${w.emoji}</div>
     <h3>${ok ? pick(PRAISE_ES)+' ⭐' : '¡Bien! La armaste 👏'}</h3>
     <div class="word-big">${colored(w)}</div>
@@ -577,7 +600,7 @@ function showWrong(typed){
     ${w.tip?`<div class="tip">💡 ${w.tip}</div>`:''}
     <div class="actions"><button class="btn" id="fbSpell">🔤 Letras</button>
     <button class="btn primary" id="fbNext">Siguiente ➜</button></div>`);
-  say(w.word); spell(w.word, true);
+  playSeq([item.word(w.word), ...letters(w.word)], 250);
   $('fbSpell').onclick = ()=>spell(w.word);
   $('fbNext').onclick = ()=>{ G.pos++; nextQ(); };
 }
@@ -596,7 +619,7 @@ function endGame(){
   $('eList').innerHTML = WORDS.filter(w=>w.word in G.first)
     .map(w=>`<div>${G.first[w.word]?'✅':'🔁'} ${w.emoji} ${w.word}</div>`).join('');
   $('eAgain').onclick = ()=>startGame(G.mode);
-  show('end'); confetti(); sfx.yay(); say('Great job! You finished!');
+  show('end'); confetti(); sfx.yay();
 }
 
 renderHome();
