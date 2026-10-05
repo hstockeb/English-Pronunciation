@@ -45,7 +45,7 @@ h1{font-size:clamp(32px,8vw,50px);text-align:center;margin:6px 0 0;line-height:1
 .secs{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
 .sec{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 8px;font-size:18px;text-align:center;line-height:1.2}
 .sec .ic{font-size:40px}
-.sec .st{font-size:15px;letter-spacing:1px}
+.sec .st{font-size:20px;letter-spacing:1px}
 .full{width:100%;margin-top:12px;background:#ffe9a8;font-size:22px}
 .toplink{font-size:18px;padding:8px 14px}
 
@@ -97,10 +97,10 @@ h1{font-size:clamp(32px,8vw,50px);text-align:center;margin:6px 0 0;line-height:1
 .sentence .slot{min-width:54px;height:54px;font-size:30px;margin:0 4px}
 
 /* Story panels */
-.panels{display:flex;align-items:stretch;justify-content:center;gap:6px;flex-wrap:wrap}
-.panel{flex:1;min-width:92px;max-width:200px;background:#f4f8ff;border-radius:16px;padding:8px 4px;font-size:clamp(26px,7vw,36px);display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:2px;min-height:96px}
+.panels{display:flex;align-items:stretch;justify-content:center;gap:4px;flex-wrap:nowrap}
+.panel{flex:1;min-width:0;max-width:200px;background:#f4f8ff;border-radius:16px;padding:8px 2px;font-size:clamp(20px,5.6vw,36px);display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:2px;min-height:96px}
 .panel .leaving{opacity:.45;transform:translateX(6px)}
-.arrow{align-self:center;font-size:26px;color:var(--muted)}
+.arrow{align-self:center;font-size:20px;color:var(--muted);flex-shrink:0}
 
 /* Number line */
 .nl{display:grid;gap:3px;margin:10px 0 4px}
@@ -135,6 +135,7 @@ h1{font-size:clamp(32px,8vw,50px);text-align:center;margin:6px 0 0;line-height:1
 .big-eq{font-size:clamp(40px,11vw,60px);font-weight:700}
 
 /* Keypad */
+.padwrap{position:sticky;bottom:0;background:var(--card);padding:6px 0 4px;margin:0 -6px;z-index:5;border-radius:20px 20px 0 0}
 .pad{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:14px}
 .pad .btn{padding:0;height:58px;font-size:28px;border-radius:16px}
 .pad .sg{background:#d6e4ff}
@@ -201,8 +202,8 @@ h1{font-size:clamp(32px,8vw,50px);text-align:center;margin:6px 0 0;line-height:1
       <div id="area"></div>
       <div id="answer"></div>
       <div class="msg" id="msg"></div>
-      <div class="pad" id="pad"></div>
-      <button class="btn ok check" id="check">✅ Listo</button>
+      <div class="padwrap"><div class="pad" id="pad"></div>
+      <button class="btn ok check" id="check">✅ Listo</button></div>
     </div>
   </section>
 
@@ -338,13 +339,14 @@ function load(firstOfRun){
   closeFb();
   if(R.pos>=R.steps.length) return finishRun();
   const st = R.steps[R.pos], prev = R.steps[R.pos-1];
-  R.cur = st; R.tries = 0; R.state = {};
+  R.cur = st; R.tries = 0; R.state = {}; R.lockUntil = Date.now()+450;
+  document.querySelectorAll('.conf').forEach(c=>c.remove());
   $('check').textContent = '✅ Listo'; $('check').onclick = check;
   $('pbar').style.width = (R.pos/R.steps.length*100)+'%';
   $('iEn').textContent = st.sec.say;
   $('iEs').textContent = st.sec.es;
   const letters = 'abcdefghij';
-  $('itemNo').textContent = `${st.sec.title} · ${st.sec.group==='test'?letters[st.n]+')':(st.n+1)+'.'}`;
+  $('itemNo').textContent = st.sec.group==='test' ? `${st.sec.title.split(' ')[0]} · ${letters[st.n]})` : `${st.sec.title} · ${st.n+1}`;
   $('itemSayWrap').innerHTML = st.it.say ? `<button class="btn" id="itemSay">🔊 Leer</button>` : '';
   if(st.it.say) $('itemSay').onclick = ()=>play(st.it.say);
   $('msg').textContent=''; $('msg').className='msg';
@@ -362,14 +364,14 @@ $('iSay').onclick = ()=>play(R.cur.sec.say);
 /* ---------- answer slots + keypad ---------- */
 // R.slots: [{kind:'num'|'sign', val:'', given?:true, el?}], R.active index, R.alts: array of expected arrays (same length as slots)
 function setSlots(defs, alts){
-  R.slots = defs.map(d=>({ kind:d.kind||'num', val: d.given!=null?String(d.given):'', given: d.given!=null, max: 2 }));
+  R.slots = defs.map(d=>({ kind:d.kind||'num', val: d.given!=null?String(d.given):'', given: d.given!=null, max: d.max||2 }));
   R.alts = alts; R.waiting = false;
   R.active = R.slots.findIndex(s=>!s.given);
 }
 function slotHTML(i){
   const s = R.slots[i];
   const cls = ['slot', s.kind==='sign'?'sign':'', s.given?'given':'', i===R.active?'active':'', s.mark||''].join(' ');
-  const shown = s.kind==='sign' ? (SIGN[s.val]||'') : s.val;
+  const shown = s.kind==='sign' ? (SIGN[s.val]||'<span style="opacity:.3;font-size:.7em">±</span>') : s.val;
   return `<span class="${cls}" data-slot="${i}">${shown}</span>`;
 }
 function renderSlots(){
@@ -377,7 +379,7 @@ function renderSlots(){
     const i=+el.dataset.slot; el.outerHTML = slotHTML(i);
   });
   document.querySelectorAll('[data-slot]').forEach(el=>{
-    el.onclick = ()=>{ if(R.active<0) return; const i=+el.dataset.slot; if(R.slots[i].given) return; R.active=i; R.slots[i].fresh=true; clearMarks(); renderSlots(); };
+    el.onclick = ()=>{ if(R.active<0 || Date.now()<R.lockUntil) return; const i=+el.dataset.slot; if(R.slots[i].given) return; R.active=i; R.slots[i].fresh=true; clearMarks(); renderSlots(); };
   });
   const needsSign = R.slots.some(s=>s.kind==='sign' && !s.given);
   const multi = R.slots.filter(s=>!s.given).length>1;
@@ -400,7 +402,7 @@ function nextEditable(from){
   return from;
 }
 function key(k, btn){
-  if(R.active<0) return;
+  if(R.active<0 || Date.now()<R.lockUntil) return;
   let s = R.slots[R.active];
   const replace = s.mark==='wrong' || s.fresh; s.fresh = false;
   clearMarks(); R.waiting = false;
@@ -420,7 +422,11 @@ function key(k, btn){
   } else {
     if(s.kind==='sign'){ wiggle(btn); sfx.oops(); renderSlots(); return; }
     if(replace) s.val='';
-    if(s.val.length>=s.max){ wiggle(btn); sfx.oops(); renderSlots(); return; }
+    if(s.val.length>=s.max){
+      const j = nextEmpty(R.active);            // box full: continue in the next empty box
+      if(j===R.active || R.slots[j].kind==='sign'){ wiggle(btn); sfx.oops(); renderSlots(); return; }
+      R.active = j; s = R.slots[j];
+    }
     s.val += k; sfx.pop();
     if(s.val.length>=s.max) R.active = nextEmpty(R.active);
   }
@@ -431,7 +437,7 @@ document.addEventListener('keydown', e=>{
   if($('fb').classList.contains('on')){ if(e.key==='Enter'){ e.preventDefault(); $('fbNext') && $('fbNext').click(); } return; }
   if(/^[0-9+\-]$/.test(e.key)){ e.preventDefault(); key(e.key); }
   else if(e.key==='Backspace'){ e.preventDefault(); key('del'); }
-  else if(e.key==='Enter'){ e.preventDefault(); if(!$('check').disabled) $('check').click(); }
+  else if(e.key==='Enter'){ e.preventDefault(); if(!$('check').disabled) $('check').click(); else wiggle(document.querySelector('.slot.active')); }
   else if(e.key==='Tab'){ e.preventDefault(); R.active = nextEmpty(R.active); renderSlots(); }
 });
 
@@ -461,7 +467,7 @@ function success(){
     <div class="big-eq">${st.it.x} ${SIGN[st.it.op]} ${st.it.y} = ${res(st.it)}</div>
     <div class="actions"><button class="btn" id="fbSay">🔊</button><button class="btn primary" id="fbNext">Siguiente ➜</button></div>`);
   $('fbSay').onclick = ()=>play(eqText(st.it));
-  $('fbNext').onclick = ()=>{ R.pos++; load(false); };
+  $('fbNext').onclick = ()=>{ $('fbNext').onclick=null; R.pos++; load(false); };
 }
 function reveal(best){
   const st = R.cur;
@@ -499,10 +505,12 @@ function closeFb(){ $('fb').classList.remove('on'); }
 function objs(e, n, cls='', start=0){ let h=''; for(let i=0;i<n;i++) h+=`<span class="ob ${cls}" data-ob="${start+i}">${e}</span>`; return h; }
 // tap to count: shows 1,2,3... and says the number
 function enableCounting(){
-  let c=0;
+  const counts = new Map();
   document.querySelectorAll('#area .ob').forEach(el=>el.onclick=()=>{
     if(el.querySelector('.badge')) return;
-    c++; el.insertAdjacentHTML('beforeend',`<span class="badge">${c}</span>`); play(String(c));
+    const box = el.closest('.panel') || $('area');
+    const c = (counts.get(box)||0)+1; counts.set(box,c);
+    el.insertAdjacentHTML('beforeend',`<span class="badge">${c}</span>`); play(String(c));
   });
 }
 function enableCrossing(){
@@ -539,7 +547,7 @@ function numberLine(it, max, opts={}){
       return `<button class="${c.join(' ')}" data-n="${n}">${n===R.state.pos?`<span class="who">${who}</span>`:''}${n}</button>`;
     }).join('');
     const here=$('nl').querySelector('.here'); if(here && max>10){ const w=here.closest('.nl-wrap'); w.scrollLeft = here.offsetLeft - w.clientWidth/2 + here.offsetWidth/2; }
-    $('hops').textContent = R.state.hops ? `${R.state.hops} ${R.state.hops===1?'salto':'saltos'} ${dir>0?'➡️':'⬅️'}` : `👆 Toca el número siguiente para saltar ${dir>0?'➡️':'⬅️'}`;
+    $('hops').textContent = R.state.hops ? `${R.state.hops} ${R.state.hops===1?'salto':'saltos'} ${dir>0?'➡️':'⬅️'}` : `👆 Toca el número siguiente para saltar ${dir>0?'➡️':'⬅️'}` + (max>10?' · desliza ↔️':'');
     $('nl').querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{
       const n=+b.dataset.n;
       if(n===R.state.pos+dir && R.state.hops<it.y){ R.state.pos=n; R.state.hops++; play(String(R.state.hops)); draw(); }
@@ -547,7 +555,7 @@ function numberLine(it, max, opts={}){
       else { wiggle(b); }
     });
   };
-  return { html:`<div class="${cls}"><div class="nl" id="nl" style="grid-template-columns:repeat(${max+1},minmax(${max>10?34:28}px,1fr));min-width:${max>10?(max+1)*37:0}px"></div></div><div class="hops" id="hops"></div>`, draw };
+  return { html:`<div class="${cls}"><div class="nl" id="nl" style="grid-template-columns:repeat(${max+1},minmax(${max>10?30:28}px,1fr));min-width:${max>10?(max+1)*33:0}px"></div></div><div class="hops" id="hops"></div>`, draw };
 }
 function staticLine(it, who){
   // picture from the test: start dot + arcs already drawn
@@ -559,7 +567,7 @@ function staticLine(it, who){
     h+=`<div class="${c.join(' ')}" style="cursor:default">${inHop?`<span class="hop">${dir>0?'↷':'↶'}</span>`:''}${n}</div>`;
   }
   h+='</div></div>';
-  return `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:44px">${who}</span><div style="flex:1;min-width:0">${h}</div></div>
+  return `<div style="font-size:44px;line-height:1">${who}</div><div>${h}</div>
     <div class="hops">${it.y} ${it.y===1?'salto':'saltos'} ${dir>0?'➡️':'⬅️'}</div>`;
 }
 
