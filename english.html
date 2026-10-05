@@ -380,7 +380,7 @@ function show(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on', s.id===id));
   window.scrollTo(0,0);
 }
-function goHome(){ closeFb(); if('speechSynthesis' in window) speechSynthesis.cancel(); renderHome(); show('home'); }
+function goHome(){ closeFb(); seqId++; clearTimeout(seqTimer); try{ player.pause(); }catch(e){} if('speechSynthesis' in window) speechSynthesis.cancel(); renderHome(); show('home'); }
 document.querySelectorAll('[data-home]').forEach(b=>b.onclick=goHome);
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
   const m=b.dataset.go; if(m==='learn') startLearn(); else startGame(m);
@@ -490,7 +490,7 @@ function tapTile(id, el){
   const w = G.cur.word, t = G.tiles[id];
   if(t.ch === w[G.filled]){
     t.used = true; G.filled++; sfx.pop(); renderBuild();
-    if(G.filled === w.length) setTimeout(()=>finish(G.mist<=1, true), 250);
+    if(G.filled === w.length){ const cur=G.cur; setTimeout(()=>{ if(G.cur===cur && $('game').classList.contains('on')) finish(G.mist<=1, true); }, 250); }
   } else {
     G.mist++; sfx.oops();
     el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');

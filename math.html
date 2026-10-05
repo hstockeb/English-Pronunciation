@@ -111,7 +111,7 @@ h1{font-size:clamp(32px,8vw,50px);text-align:center;margin:6px 0 0;line-height:1
 .nl .c.here{background:var(--accent);color:#fff}
 .nl .c .hop{position:absolute;top:-24px;left:50%;transform:translateX(-50%);font-size:18px;color:var(--blue)}
 .nl .c .who{position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);font-size:clamp(22px,6vw,30px);pointer-events:none}
-.nl-wrap{padding-top:34px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.nl-wrap{position:relative;padding-top:34px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
 .nl-wrap.n20 .nl .c{font-size:clamp(11px,3vw,17px);border-width:2px;border-radius:6px}
 .hops{font-size:20px;color:var(--muted);min-height:26px}
 
@@ -188,7 +188,7 @@ h1{font-size:clamp(32px,8vw,50px);text-align:center;margin:6px 0 0;line-height:1
   <!-- PLAY -->
   <section id="play" class="screen">
     <div class="top">
-      <button class="btn" id="homeBtn">🏠</button>
+      <button class="btn" id="homeBtn" aria-label="Menú">🏠</button>
       <div class="bar"><div id="pbar"></div></div>
       <div class="starcount">⭐ <span id="stars">0</span></div>
     </div>
@@ -244,10 +244,11 @@ function pickVoice(){
   voice = vs.find(v=>/^en[-_]US/i.test(v.lang)) || vs.find(v=>/^en/i.test(v.lang)) || null;
 }
 if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-function tts(text){
-  if(!('speechSynthesis' in window)) return;
+function tts(text, done){
+  if(!('speechSynthesis' in window)){ done && done(); return; }
   const u = new SpeechSynthesisUtterance(text);
   u.lang='en-US'; if(voice) u.voice=voice; u.rate=0.85;
+  if(done){ u.onend = u.onerror = done; }
   speechSynthesis.speak(u);
 }
 function play(texts, gap=250){
@@ -260,7 +261,7 @@ function play(texts, gap=250){
     const t = list.shift(); if(t===undefined) return;
     let done = false;
     const advance = d => { if(done || id!==seqId) return; done = true; seqTimer = setTimeout(next, d); };
-    const fallback = () => { if(done || id!==seqId) return; tts(t); advance(1500); };
+    const fallback = () => { if(done || id!==seqId) return; const safety = setTimeout(()=>advance(0), 9000); tts(t, ()=>{ clearTimeout(safety); advance(gap); }); };
     player.onended = () => advance(gap);
     player.onerror = fallback;
     player.src = `audio/math/${slug(String(t))}.mp3`;
@@ -276,6 +277,7 @@ let actx;
 function tone(freqs, dur=0.11, type='sine', vol=0.2){
   try{
     actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended' && actx.resume) actx.resume();
     const t0 = actx.currentTime;
     freqs.forEach((f,i)=>{
       const o=actx.createOscillator(), g=actx.createGain();
@@ -360,8 +362,8 @@ $('iSay').onclick = ()=>play(R.cur.sec.say);
 /* ---------- answer slots + keypad ---------- */
 // R.slots: [{kind:'num'|'sign', val:'', given?:true, el?}], R.active index, R.alts: array of expected arrays (same length as slots)
 function setSlots(defs, alts){
-  R.slots = defs.map(d=>({ kind:d.kind||'num', val: d.given!=null?String(d.given):'', given: d.given!=null, max: d.max||2 }));
-  R.alts = alts;
+  R.slots = defs.map(d=>({ kind:d.kind||'num', val: d.given!=null?String(d.given):'', given: d.given!=null, max: 2 }));
+  R.alts = alts; R.waiting = false;
   R.active = R.slots.findIndex(s=>!s.given);
 }
 function slotHTML(i){
@@ -375,37 +377,50 @@ function renderSlots(){
     const i=+el.dataset.slot; el.outerHTML = slotHTML(i);
   });
   document.querySelectorAll('[data-slot]').forEach(el=>{
-    el.onclick = ()=>{ const i=+el.dataset.slot; if(R.slots[i].given) return; R.active=i; clearMarks(); renderSlots(); };
+    el.onclick = ()=>{ if(R.active<0) return; const i=+el.dataset.slot; if(R.slots[i].given) return; R.active=i; R.slots[i].fresh=true; clearMarks(); renderSlots(); };
   });
   const needsSign = R.slots.some(s=>s.kind==='sign' && !s.given);
+  const multi = R.slots.filter(s=>!s.given).length>1;
   const keys = ['1','2','3','4','5','6','7','8','9','0'];
   $('pad').style.gridTemplateColumns = 'repeat(6,1fr)';
   $('pad').innerHTML = keys.map(k=>`<button class="btn" data-k="${k}">${k}</button>`).join('') +
     (needsSign ? `<button class="btn sg" data-k="+">+</button><button class="btn sg" data-k="-">−</button>` : '') +
-    `<button class="btn del" data-k="del" style="grid-column:span ${needsSign?6:2}">⌫</button>`;
+    (multi ? `<button class="btn sg" data-k="next" style="grid-column:span ${needsSign?3:1}" aria-label="Siguiente casilla">➡️</button>` : '') +
+    `<button class="btn del" data-k="del" style="grid-column:span ${needsSign?(multi?3:6):(multi?1:2)}" aria-label="Borrar">⌫</button>`;
   $('pad').querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>key(b.dataset.k, b));
-  $('check').disabled = R.slots.some(s=>s.val==='');
+  if(R.active>=0) $('check').disabled = R.waiting || R.slots.some(s=>s.val==='');
 }
 function clearMarks(){ R.slots.forEach(s=>s.mark=''); $('msg').textContent=''; }
 function nextEmpty(from){
   for(let k=1;k<=R.slots.length;k++){ const j=(from+k)%R.slots.length; if(!R.slots[j].given && R.slots[j].val==='') return j; }
   return from;
 }
+function nextEditable(from){
+  for(let k=1;k<=R.slots.length;k++){ const j=(from+k)%R.slots.length; if(!R.slots[j].given) return j; }
+  return from;
+}
 function key(k, btn){
   if(R.active<0) return;
-  const s = R.slots[R.active];
-  clearMarks();
+  let s = R.slots[R.active];
+  const replace = s.mark==='wrong' || s.fresh; s.fresh = false;
+  clearMarks(); R.waiting = false;
+  if(k==='next'){ R.active = nextEditable(R.active); sfx.pop(); renderSlots(); return; }
   if(k==='del'){
     if(s.val==='' ){ // go back to previous editable slot
       for(let j=R.active-1;j>=0;j--) if(!R.slots[j].given){ R.active=j; break; }
       R.slots[R.active].val = R.slots[R.active].kind==='sign' ? '' : R.slots[R.active].val.slice(0,-1);
     } else s.val = s.kind==='sign' ? '' : s.val.slice(0,-1);
   } else if(k==='+'||k==='-'){
-    if(s.kind!=='sign'){ wiggle(btn); sfx.oops(); return; }
+    if(s.kind!=='sign'){
+      const j = R.slots.findIndex((x,i)=>i>R.active && x.kind==='sign' && !x.given);
+      if(j<0 || s.val===''){ wiggle(btn); sfx.oops(); renderSlots(); return; }
+      R.active = j; s = R.slots[j];
+    }
     s.val = k; sfx.pop(); R.active = nextEmpty(R.active);
   } else {
-    if(s.kind==='sign'){ wiggle(btn); sfx.oops(); return; }
-    if(s.val.length>=s.max) s.val='';
+    if(s.kind==='sign'){ wiggle(btn); sfx.oops(); renderSlots(); return; }
+    if(replace) s.val='';
+    if(s.val.length>=s.max){ wiggle(btn); sfx.oops(); renderSlots(); return; }
     s.val += k; sfx.pop();
     if(s.val.length>=s.max) R.active = nextEmpty(R.active);
   }
@@ -428,10 +443,10 @@ function check(){
   R.alts.forEach(a=>{ const sc=a.filter((v,i)=>String(v)===vals[i]).length; if(sc>bestScore){bestScore=sc;best=a;} });
   const ok = bestScore===R.slots.length;
   if(ok){ R.slots.forEach(s=>{ if(!s.given) s.mark='good'; }); renderSlots(); return success(); }
-  R.tries++;
+  R.tries++; R.waiting = true;
   R.slots.forEach((s,i)=>{ if(!s.given) s.mark = String(best[i])===vals[i] ? 'good' : 'wrong'; });
   const firstWrong = R.slots.findIndex(s=>s.mark==='wrong'); if(firstWrong>=0) R.active = firstWrong;
-  renderSlots(); sfx.oops(); wiggle($('answer'));
+  renderSlots(); sfx.oops(); wiggle(document.querySelector('.slot.wrong'));
   if(R.tries>=2) return reveal(best);
   $('msg').className='msg bad'; $('msg').textContent='¡Casi! Revisa los rojos e inténtalo otra vez 💪';
 }
@@ -452,7 +467,7 @@ function reveal(best){
   const st = R.cur;
   R.perSec[st.sec.id] = R.perSec[st.sec.id] || {ok:0,n:0}; R.perSec[st.sec.id].n++;
   R.slots.forEach((s,i)=>{ s.val=String(best[i]); s.mark = s.given?'':'good'; });
-  R.active=-1; renderSlots();
+  R.active=-1; R.waiting=false; renderSlots();
   play(eqText(st.it));
   $('msg').className='msg ok'; $('msg').innerHTML='Así es 👆 ¡Mira bien la respuesta!';
   $('check').disabled=false; $('check').textContent='Siguiente ➜';
@@ -558,7 +573,7 @@ function drawPad(){
     $('draw').innerHTML = R.state.circles.map((x,i)=>`<span class="circ ${x?'crossed':''}" data-c="${i}"></span>`).join('');
     $('draw').querySelectorAll('[data-c]').forEach(el=>el.onclick=()=>{ const i=+el.dataset.c; R.state.circles[i]=!R.state.circles[i]; sfx.pop(); draw(); });
     const total=R.state.circles.length, crossed=R.state.circles.filter(Boolean).length;
-    if(total) $('drawCount').textContent = `⚪ ${total}` + (crossed?`  ·  tachados ${crossed}  ·  quedan ${total-crossed}`:'');
+    $('drawCount').textContent = total ? `⚪ ${total}` + (crossed?`  ·  tachados ${crossed}  ·  quedan ${total-crossed}`:'') : 'Toca ⚪ para dibujar. Toca un círculo para tacharlo.';
   };
   const wire = ()=>{
     $('addC').onclick = ()=>{ if(R.state.circles.length<20){ R.state.circles.push(false); play(String(R.state.circles.length)); draw(); } };
