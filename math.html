@@ -498,8 +498,8 @@ function eqSlots(it, opts={}){
   const g = opts.given || {};
   const z = res(it);
   return {
-    html: `<div class="eq">${slotTag(0)}${slotTag(1)}${slotTag(2)}<span>=</span>${slotTag(3)}</div>`,
-    defs: [{given:g.x?it.x:null, max:String(it.x).length},{kind:'sign',given:g.op?it.op:null},{given:g.y?it.y:null, max:String(it.y).length},{max:String(z).length}],
+    html: `<div class="eq">${slotTag(0)}${slotTag(1)}${slotTag(2)}${opts.noResult?'':`<span>=</span>${slotTag(3)}`}</div>`,
+    defs: [{given:g.x?it.x:null, max:String(it.x).length},{kind:'sign',given:g.op?it.op:null},{given:g.y?it.y:null, max:String(it.y).length}].concat(opts.noResult?[]:[{max:String(z).length}]),
   };
 }
 const slotTag = i => `<span data-slot="${i}"></span>`;
@@ -612,9 +612,9 @@ const RENDER = {
   },
   opline(it){
     $('area').innerHTML = staticLine(it, it.e);
-    const e = eqSlots(it);
+    const e = eqSlots(it, {noResult:true});
     $('answer').innerHTML = `<div class="hops">Operation ▶</div>` + e.html;
-    setSlots(e.defs, eqAlts(it));
+    setSlots(e.defs, [[it.x,it.op,it.y]]);
   },
   blocks(it){
     const bar = (d,l)=>`<span class="bar-b">${'<span class="cube d"></span>'.repeat(d)}${'<span class="cube l"></span>'.repeat(l)}</span>`;
@@ -622,11 +622,11 @@ const RENDER = {
     $('area').innerHTML = sep
       ? `<div class="blocks">${bar(it.dark,it.light)}<div class="barrow">↙ ↘</div><div class="brow">${bar(it.dark,0)}${bar(0,it.light)}</div></div>`
       : `<div class="blocks"><div class="brow">${bar(it.dark,0)}${bar(0,it.light)}</div><div class="barrow">↘ ↙</div>${bar(it.dark,it.light)}</div>`;
-    const e = eqSlots(it);
+    const e = eqSlots(it, {noResult:true});
     $('answer').innerHTML = `<div class="hops">Operation ▶</div>` + e.html;
-    // separating 7 into 4 and 3: 7 − 4 = 3 or 7 − 3 = 4 are both right
+    // worksheet boxes: [7] ○ [4]. Separating 7 into 4 and 3: 7 − 4 or 7 − 3 are both right
     const extra = sep && it.dark!==it.light ? [[it.x,'-',res(it),it.y]] : [];
-    setSlots(e.defs, eqAlts(it, extra));
+    setSlots(e.defs, eqAlts(it, extra).map(a=>a.slice(0,3)));
   },
   pictorial(it){
     const d = drawPad();

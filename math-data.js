@@ -92,7 +92,7 @@ window.MATH = {
         { "e": "🐶", "x": 3, "op": "+", "y": 2,
           "t": ["There were", "dogs.", "more dogs came.", "Now there are", "dogs."],
           "say": "There were how many dogs? How many more dogs came? How many dogs are there now?" },
-        { "e": "🦋", "x": 4, "op": "+", "y": 2,
+        { "e": "🦋", "x": 4, "op": "+", "y": 3,
           "t": ["There were", "butterflies.", "more butterflies came.", "Now there are", "butterflies."],
           "say": "There were how many butterflies? How many more butterflies came? How many butterflies are there now?" },
         { "e": "🍎", "x": 2, "op": "+", "y": 3,
@@ -106,7 +106,7 @@ window.MATH = {
       "es": "Quita y completa las oraciones.",
       "type": "story",
       "items": [
-        { "e": "🦆", "x": 4, "op": "-", "y": 2,
+        { "e": "🦆", "x": 5, "op": "-", "y": 3,
           "t": ["There were", "ducks.", "ducks flew away.", "Now there are", "ducks."],
           "say": "There were how many ducks? How many ducks flew away? How many ducks are there now?" },
         { "e": "👦", "x": 4, "op": "-", "y": 1,
