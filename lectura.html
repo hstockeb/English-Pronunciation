@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lectura Mágica</title>
+<meta name="theme-color" content="#c9f0d8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#e6f8ec; --bg2:#fff3d6; --ink:#2d2a4a; --card:#ffffff; --muted:#6f6c8f;
+  --ok:#22a861; --bad:#ff5a5f; --accent:#22a861; --shadow:0 6px 0 rgba(45,42,74,.15);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+html{background:var(--bg2)}
+body{
+  font-family:'Fredoka','Comic Sans MS',system-ui,sans-serif;color:var(--ink);
+  background:linear-gradient(180deg,var(--bg1),var(--bg2)) fixed;background-color:var(--bg1);
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  user-select:none;-webkit-user-select:none;overflow-x:hidden;
+}
+.app{max-width:720px;margin:0 auto;padding:16px 16px 40px;min-height:100vh}
+.screen{display:none}.screen.on{display:block}
+h1{font-size:clamp(30px,8vw,46px);text-align:center;margin:6px 0 0;line-height:1.1}
+.sub{text-align:center;color:var(--muted);font-size:19px;margin:6px 0 16px}
+.btn{
+  font:inherit;border:0;cursor:pointer;border-radius:20px;padding:12px 18px;font-size:22px;font-weight:600;
+  background:var(--card);color:var(--ink);box-shadow:var(--shadow);transition:transform .08s,box-shadow .08s;
+  text-decoration:none;display:inline-block;
+}
+.btn:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(45,42,74,.15)}
+.btn:disabled{cursor:default}
+.btn.primary{background:var(--accent);color:#fff}
+.toplink{font-size:18px;padding:10px 14px}
+
+/* Home */
+.book{background:#fff;border-radius:28px;padding:20px;box-shadow:var(--shadow);text-align:center;margin-top:12px}
+.book .cover{font-size:90px;line-height:1}
+.book h2{font-size:clamp(26px,7vw,36px);margin:8px 0 2px}
+.book .by{color:var(--muted);font-size:17px}
+.best{font-size:30px;margin-top:8px;letter-spacing:3px}
+.go{display:flex;flex-direction:column;gap:12px;margin-top:18px}
+.go .btn{font-size:24px;padding:16px}
+details.parents{margin-top:22px;background:rgba(255,255,255,.7);border-radius:18px;padding:12px 16px;font-size:17px;user-select:text;-webkit-user-select:text}
+details.parents summary{cursor:pointer;font-weight:600;font-size:19px}
+details.parents li{margin:6px 0}
+
+/* Top bar */
+.top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.top .btn{padding:10px 14px;font-size:20px}
+.bar{flex:1;height:22px;background:#fff;border-radius:999px;overflow:hidden;box-shadow:inset 0 2px 4px rgba(0,0,0,.08)}
+.bar>div{height:100%;width:0;background:linear-gradient(90deg,#9be7b4,#22a861);transition:width .4s}
+.starcount{font-size:22px;font-weight:700;min-width:60px;text-align:right}
+
+/* Question */
+.qcard{background:#fff;border-radius:26px;padding:16px;box-shadow:var(--shadow)}
+.qhead{display:flex;gap:12px;align-items:center}
+.qtext{flex:1;font-size:clamp(22px,6vw,30px);font-weight:600;line-height:1.25}
+.qhead .btn{font-size:28px;padding:12px 14px;background:#ffcf3f;flex-shrink:0}
+.qno{color:var(--muted);font-size:16px;margin-bottom:6px}
+.opts{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.opt{display:flex;align-items:center;gap:12px;text-align:left;font-size:clamp(19px,5.2vw,24px);padding:14px 16px;min-height:72px;border:4px solid transparent;background:#f4fbf6}
+.opt .e{font-size:clamp(34px,9vw,44px);flex-shrink:0;width:1.3em;text-align:center}
+.opt.reading{border-color:#ffcf3f;background:#fff8e1}
+.opt.good{border-color:var(--ok);background:#dff7ea}
+.opt.bad{border-color:var(--bad);background:#ffe3e4}
+.opt.dim{opacity:.45}
+.why{display:none;margin-top:14px;background:#fff6d6;border-radius:18px;padding:12px 14px;font-size:clamp(18px,5vw,22px);line-height:1.35}
+.why.on{display:block}
+.why .h{font-weight:700;font-size:24px;margin-bottom:4px}
+.next{display:none;width:100%;margin-top:14px;font-size:24px}
+.next.on{display:block}
+
+/* End */
+.card{background:#fff;border-radius:26px;padding:18px;box-shadow:var(--shadow);text-align:center}
+.pic{font-size:80px;line-height:1.1}
+.big-stars{font-size:50px;letter-spacing:4px}
+.review{text-align:left;margin:14px 0;display:flex;flex-direction:column;gap:8px}
+.review div{background:#f4fbf6;border-radius:14px;padding:10px 12px;font-size:18px}
+.review b{display:block}
+.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.conf{position:fixed;top:-50px;animation:fall 1.9s ease-in forwards;pointer-events:none;z-index:50}
+@keyframes fall{to{transform:translateY(115vh) rotate(380deg)}}
+.wiggle{animation:wig .4s}
+@keyframes wig{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HOME -->
+  <section id="home" class="screen on">
+    <a class="btn toplink" href="index.html">⬅️ Inicio</a>
+    <h1>📖 Lectura Mágica</h1>
+    <p class="sub">Preguntas sobre el libro</p>
+    <div class="book">
+      <div class="cover" id="cover"></div>
+      <h2 id="bTitle"></h2>
+      <div class="by" id="bBy"></div>
+      <div class="best" id="best"></div>
+      <div class="go">
+        <button class="btn primary" id="goRound"></button>
+        <button class="btn" id="goAll"></button>
+      </div>
+    </div>
+    <details class="parents">
+      <summary>👨‍👩‍👧 Para papá o mamá</summary>
+      <ul>
+        <li>Lean el libro juntos antes de jugar. 📚</li>
+        <li>Cada ronda elige preguntas <b>al azar</b> y cambia el orden de las respuestas.</li>
+        <li>La app lee en voz alta la pregunta y las respuestas. Se pueden escuchar otra vez con 🔊.</li>
+        <li>Las preguntas que falla vuelven a aparecer al final de la ronda.</li>
+        <li>Para conversar: ¿qué habrías hecho tú en lugar de Agustín? ¿Por qué no está bien mentir?</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- PLAY -->
+  <section id="play" class="screen">
+    <div class="top">
+      <button class="btn" id="homeBtn" aria-label="Menú">🏠</button>
+      <div class="bar"><div id="pbar"></div></div>
+      <div class="starcount">⭐ <span id="stars">0</span></div>
+    </div>
+    <div class="qcard">
+      <div class="qno" id="qno"></div>
+      <div class="qhead"><div class="qtext" id="qtext"></div><button class="btn" id="qsay" aria-label="Escuchar otra vez">🔊</button></div>
+      <div class="opts" id="opts"></div>
+      <div class="why" id="why"></div>
+      <button class="btn primary next" id="next">Siguiente ➜</button>
+    </div>
+  </section>
+
+  <!-- END -->
+  <section id="end" class="screen">
+    <div class="card">
+      <div class="pic">🏆</div>
+      <h1>¡Terminaste!</h1>
+      <div class="big-stars" id="eStars"></div>
+      <p class="sub" id="eMsg"></p>
+      <div class="review" id="review"></div>
+      <div class="actions">
+        <button class="btn primary" id="again">🔁 Otra vez</button>
+        <button class="btn" id="endHome">🏠 Menú</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="lectura-data.js"></script>
+<script>
+const D = window.LECTURA;
+const $ = id => document.getElementById(id);
+const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const pick = a => a[Math.floor(Math.random()*a.length)];
+
+/* ---------- audio: recorded Spanish clips, browser voice as backup ---------- */
+// Must match slug_es() in tools/make_audio.py
+function slugEs(text){
+  const full = text.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  let h = 5381; for(const c of full) h = (((h<<5)+h) + c.charCodeAt(0)) >>> 0;
+  return `${full.slice(0,50).replace(/-+$/,'')}-${h.toString(36)}`;
+}
+const player = new Audio(); player.preload = 'auto';
+let seqId = 0, seqTimer = null, voice = null;
+function pickVoice(){
+  if(!('speechSynthesis' in window)) return;
+  const vs = speechSynthesis.getVoices();
+  voice = vs.find(v=>/^es[-_](CL|MX|US|419)/i.test(v.lang)) || vs.find(v=>/^es/i.test(v.lang)) || null;
+}
+if('speechSynthesis' in window){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+function tts(text, done){
+  if(!('speechSynthesis' in window)){ done && done(); return; }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang='es-MX'; if(voice) u.voice=voice; u.rate=0.9;
+  if(done){ u.onend = u.onerror = done; }
+  speechSynthesis.speak(u);
+}
+// play a list of texts; onStep(i) is called as each one starts (-1 when finished)
+function play(texts, onStep, gap=350){
+  const list = (Array.isArray(texts)?texts:[texts]).slice();
+  const id = ++seqId; clearTimeout(seqTimer);
+  try{ player.pause(); }catch(e){}
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+  let i = -1;
+  const next = ()=>{
+    if(id!==seqId) return;
+    i++;
+    if(i>=list.length){ onStep && onStep(-1); return; }
+    const t = list[i]; onStep && onStep(i);
+    let done = false;
+    const advance = d => { if(done || id!==seqId) return; done = true; seqTimer = setTimeout(next, d); };
+    const fallback = () => { if(done || id!==seqId) return; const s = setTimeout(()=>advance(0), 9000); tts(t, ()=>{ clearTimeout(s); advance(gap); }); };
+    player.onended = () => advance(gap);
+    player.onerror = fallback;
+    player.src = `audio/lectura/${slugEs(t)}.mp3`;
+    const p = player.play(); if(p && p.catch) p.catch(fallback);
+  };
+  next();
+}
+function stopAudio(){ seqId++; clearTimeout(seqTimer); try{ player.pause(); }catch(e){} if('speechSynthesis' in window) speechSynthesis.cancel(); }
+
+/* ---------- little sounds ---------- */
+let actx;
+function tone(freqs, dur=0.11, type='sine', vol=0.2){
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended' && actx.resume) actx.resume();
+    const t0 = actx.currentTime;
+    freqs.forEach((f,i)=>{
+      const o=actx.createOscillator(), g=actx.createGain();
+      o.type=type; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t0+i*dur);
+      g.gain.exponentialRampToValueAtTime(vol,t0+i*dur+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+(i+1)*dur);
+      o.connect(g).connect(actx.destination);
+      o.start(t0+i*dur); o.stop(t0+(i+1)*dur+0.05);
+    });
+  }catch(e){}
+}
+const sfx = { yay:()=>tone([523,659,784,1047],0.1), oops:()=>tone([220,180],0.12,'triangle',0.15) };
+function confetti(){
+  const em=['⭐','🎉','✨','🌟','🧦','💚'];
+  for(let i=0;i<24;i++){
+    const s=document.createElement('span'); s.className='conf'; s.textContent=em[i%em.length];
+    s.style.left=Math.random()*96+'vw'; s.style.animationDelay=(Math.random()*.5)+'s';
+    s.style.fontSize=(22+Math.random()*26)+'px';
+    document.body.appendChild(s); setTimeout(()=>s.remove(),2600);
+  }
+}
+
+/* ---------- best score (per device) ---------- */
+function loadBest(){ try{ return +(localStorage.getItem('lm-best')||0); }catch(e){ return 0; } }
+function saveBest(n){ try{ localStorage.setItem('lm-best', String(n)); }catch(e){} }
+
+/* ---------- navigation ---------- */
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on', s.id===id)); window.scrollTo(0,0); }
+function goHome(){ stopAudio(); renderHome(); show('home'); }
+$('homeBtn').onclick = goHome; $('endHome').onclick = goHome;
+
+function renderHome(){
+  $('cover').textContent = '🦌' + D.book.icon;
+  $('bTitle').textContent = D.book.title;
+  $('bBy').textContent = `${D.book.author} · Ilustraciones de ${D.book.illustrator}`;
+  const b = loadBest(); $('best').textContent = '⭐'.repeat(b) + '☆'.repeat(3-b);
+  $('goRound').textContent = `▶️ Jugar (${Math.min(D.perRound, D.questions.length)} preguntas)`;
+  $('goAll').textContent = `📚 Todas las preguntas (${D.questions.length})`;
+}
+$('goRound').onclick = ()=>start(D.perRound);
+$('goAll').onclick = ()=>start(D.questions.length);
+
+/* ---------- game ---------- */
+let G = null;
+function start(n){
+  const qs = shuffle(D.questions.slice()).slice(0, Math.min(n, D.questions.length));
+  G = { n, queue: qs, pos:0, first:new Map(), retried:new Set(), stars:0 };
+  $('stars').textContent = 0;
+  show('play'); load(true);
+}
+function load(first){
+  if(G.pos >= G.queue.length) return finish();
+  const q = G.queue[G.pos];
+  G.cur = q; G.answered = false; G.lockUntil = Date.now()+400;
+  G.opts = shuffle(q.a.map((a,i)=>({ e:a[0], t:a[1], ok:i===0 })));
+  document.querySelectorAll('.conf').forEach(c=>c.remove());
+  $('pbar').style.width = (G.pos/G.queue.length*100)+'%';
+  $('qno').textContent = `Pregunta ${G.pos+1} de ${G.queue.length}`;
+  $('qtext').textContent = q.q;
+  $('opts').innerHTML = G.opts.map((o,i)=>`<button class="btn opt" data-i="${i}"><span class="e">${o.e}</span><span>${o.t}</span></button>`).join('');
+  $('opts').querySelectorAll('.opt').forEach(b=>b.onclick=()=>answer(+b.dataset.i, b));
+  $('why').className = 'why'; $('next').className = 'btn primary next';
+  readQuestion(first);
+}
+function readQuestion(withIntro){
+  const texts = (withIntro ? [D.phrases.start] : []).concat([G.cur.q], G.opts.map(o=>o.t));
+  const off = withIntro ? 2 : 1;
+  const btns = [...$('opts').querySelectorAll('.opt')];
+  play(texts, i=>{ btns.forEach((b,k)=>b.classList.toggle('reading', !G.answered && k===i-off)); });
+}
+$('qsay').onclick = ()=>{ if(!G.answered) readQuestion(false); else play([G.cur.q]); };
+
+function answer(i, btn){
+  if(G.answered || Date.now()<G.lockUntil) return;
+  G.answered = true;
+  const o = G.opts[i], q = G.cur;
+  const btns = [...$('opts').querySelectorAll('.opt')];
+  btns.forEach((b,k)=>{ b.classList.remove('reading'); b.disabled = true;
+    if(G.opts[k].ok) b.classList.add('good'); else if(k===i) b.classList.add('bad'); else b.classList.add('dim'); });
+  const right = G.opts.find(x=>x.ok);
+  if(!G.first.has(q)) G.first.set(q, o.ok);
+  if(o.ok){
+    G.stars++; $('stars').textContent = G.stars;
+    confetti(); sfx.yay();
+    const praise = pick(D.phrases.ok);
+    $('why').innerHTML = `<div class="h">${praise} 🌟</div>${q.why}`;
+    play([praise, q.why]);
+  } else {
+    if(!G.retried.has(q)){ G.retried.add(q); G.queue.push(q); }
+    sfx.oops(); btn.classList.add('wiggle');
+    $('why').innerHTML = `<div class="h">¡Casi! 💪</div>La respuesta es: <b>${right.e} ${right.t}</b><br>${q.why}`;
+    play([D.phrases.bad, right.t, q.why]);
+  }
+  $('why').classList.add('on'); $('next').classList.add('on');
+  $('next').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+$('next').onclick = ()=>{ if(!G.answered) return; G.answered=false; G.pos++; load(false); };
+
+function finish(){
+  stopAudio();
+  $('pbar').style.width = '100%';
+  const asked = [...G.first.keys()];
+  const good = asked.filter(q=>G.first.get(q)).length;
+  const r = good/asked.length, s = r>=0.9?3:r>=0.6?2:1;
+  if(G.n >= D.perRound) saveBest(Math.max(loadBest(), s));
+  $('eStars').textContent = '⭐'.repeat(s) + '☆'.repeat(3-s);
+  $('eMsg').textContent = `${good} de ${asked.length} a la primera.`;
+  const missed = asked.filter(q=>!G.first.get(q));
+  $('review').innerHTML = missed.length
+    ? '<div style="background:none;padding:0;font-weight:600">Para repasar:</div>' + missed.map(q=>`<div><b>${q.q}</b>${q.a[0][0]} ${q.a[0][1]}</div>`).join('')
+    : '';
+  $('again').onclick = ()=>start(G.n);
+  show('end'); confetti(); sfx.yay(); play([D.phrases.end]);
+}
+
+document.addEventListener('pointerdown', function once(){
+  try{ actx = actx || new (window.AudioContext||window.webkitAudioContext)(); actx.resume && actx.resume(); }catch(e){}
+  document.removeEventListener('pointerdown', once, true);
+}, true);
+
+renderHome();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # 🎒 Study
 
-A kid-friendly study web app for a 1st grader: **English spelling dictation** and **math (in English)**. It is built from the school's own word lists and worksheets, has big buttons, pictures and recorded English audio, and the on-screen text is in Spanish.
+A kid-friendly study web app for a 1st grader: **English spelling dictation**, **math (in English)** and **reading comprehension (in Spanish)**. It is built from the school's own word lists and worksheets, has big buttons, pictures and recorded English audio, and the on-screen text is in Spanish.
 
 🌐 **Live app:** https://hstockeb.github.io/Study/
 
@@ -9,6 +9,7 @@ A kid-friendly study web app for a 1st grader: **English spelling dictation** an
 | 🎒 Home: choose a subject | https://hstockeb.github.io/Study/ |
 | 🔤 English: Dictado Mágico | https://hstockeb.github.io/Study/english.html |
 | 🔢 Math: Math Magic | https://hstockeb.github.io/Study/math.html |
+| 📖 Lectura: Lectura Mágica | https://hstockeb.github.io/Study/lectura.html |
 
 > 📱 **Tip:** on an iPhone/iPad, open the link in Safari, then Share → **Add to Home Screen**. It opens like an app.
 
@@ -44,6 +45,16 @@ Every exercise from the two school documents, with the same numbers, objects and
 - 🔢 Answers go in with a big number pad, plus + / − for operations. Two wrong tries show the correct answer.
 - Run a single section, or the whole **Guía completa** / **Pre-Test completo**.
 
+## 📖 Lectura: Lectura Mágica
+
+A random quiz about the book ***El calcetín de Agustín*** (Mauricio Paredes, illustrated by Verónica Laymuns). The book itself is **not** included in the app; it holds only questions written for studying the story.
+
+- **31 questions:** the characters, what happens and in what order, feelings, the authors and the lesson of the story.
+- **Random every time:** each round picks 10 questions at random and shuffles the answer order. **📚 Todas** asks all 31.
+- **Read aloud in Spanish:** the question and the 3 answers are read aloud, each answer highlighted while it is read. 🔊 repeats them.
+- **Pictures:** every answer has a picture (emoji), so she can answer before she can read everything.
+- **After each answer:** a short explanation of the right answer, read aloud. Missed questions come back at the end, and the end screen lists what to review.
+
 ---
 
 ## ✏️ Updating for a new test
@@ -58,6 +69,10 @@ Every exercise from the two school documents, with the same numbers, objects and
 2. The exercise types are: `groups`, `separate`, `takeaway`, `line`, `story`, `opline`, `blocks`, `pictorial`, `numline`, `solve` and `word`. Copy an existing section of the same type as a template.
 3. Regenerate the audio (see below).
 
+### New book quiz
+1. Edit `lectura-data.js`: the book info and `questions`. Each question has `q`, three answers `a` as `[emoji, text]` with the **correct one first** (the app shuffles them), and `why`, a short explanation.
+2. Regenerate the audio (see below).
+
 ### Regenerate the audio
 ```bash
 pip install gTTS
@@ -67,18 +82,21 @@ This creates only the missing clips:
 - `audio/words/` and `audio/slow/`: English words (normal and slow).
 - `audio/letters/`: the letters a–z.
 - `audio/math/`: instructions, problems, equations and the numbers 0–20.
+- `audio/lectura/`: questions, answers and explanations in Spanish.
 
-Math file names come from the spoken text: `slug()` in `math.html` must match `slug()` in `tools/make_audio.py`.
+Audio file names come from the spoken text. `slug()` in `math.html` and `slugEs()` in `lectura.html` must match `slug()` and `slug_es()` in `tools/make_audio.py`.
 
 ---
 
 ## 🗂️ Project structure
 
 ```
-index.html            Home page (choose English or Math)
+index.html            Home page (choose English, Math or Lectura)
 english.html          English dictation app (self-contained)
 math.html             Math app (UI + logic)
 math-data.js          All math exercises (data only)
+lectura.html          Reading quiz app
+lectura-data.js       Book quiz questions (data only)
 audio/                Recorded mp3 clips (generated)
 tools/make_audio.py   Audio generator (gTTS)
 .github/workflows/    "Rebuild GitHub Pages" workflow
